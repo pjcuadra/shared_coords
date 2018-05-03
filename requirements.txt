@@ -1,0 +1,3 @@
+aruco
+opencv-contrib-python
+opencv-python
