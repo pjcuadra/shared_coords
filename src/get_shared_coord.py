@@ -211,9 +211,6 @@ if __name__ == '__main__':
     if '-p' in myargs:
         params_path = myargs['-p']
         logging.info('Parameters to be writte to ' + params_path)
-    else:
-        logging.error('No parameters file path provided')
-        exit(-1)
 
     if '-c' in myargs:
         camera = myargs['-c']
