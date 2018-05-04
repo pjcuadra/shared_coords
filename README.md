@@ -66,3 +66,37 @@ def get_coordinates(in_path,
   * 3D location of the center point of each of the detected marker
   * Normal vector with respect to each detected marker
 * ```marker_size```: Size of the printed marker in meters
+
+## Center Correction
+
+### Usage
+
+#### Command Line
+
+```bash
+python center_correction.py -i <input_image> [-v] [-s] [-o <output_image>] [-d <detection_file>]
+
+```
+
+* ```-i```: Path to the input image
+* ```-c```: Path to the camera calibration file
+* ```-v```: Verbose mode
+* ```-s```: Show window with original image augmented with marker coordinates
+  system axis
+* ```-o```: Path to where the augmented image will be written
+* ```-d```: Path to the detection file
+
+#### Programmatically
+
+```
+def correct_center(in_path,
+                   out_path,
+                   detection_path,
+                   show_window=False):
+```
+
+* ```in_path```: Path to the input image
+* ```show_window```: Show window with original image augmented with marker
+  coordinates system axis
+* ```out_path```: Path to where the augmented image will be written
+* ```detection_path```: Path to the detection file
