@@ -165,25 +165,26 @@ def get_coordinates(in_path,
         cv2.imwrite(out_path, output_image)
 
     # Add data to JSON
-    if not parameters_path:
-        return
+    if parameters_path:
 
-    json_content = dict()
+        json_content = dict()
 
-    json_content["ids"] = ids.tolist()
-    json_content["m_c"] = centers
-    json_content["m_c_3d"] = rtvecs
-    json_content["n_vector"] = nvecs
+        json_content["ids"] = ids.tolist()
+        json_content["m_c"] = centers
+        json_content["m_c_3d"] = rtvecs
+        json_content["n_vector"] = nvecs
 
-    for i in range(0, len(rvecs)):
-        json_content["m_c"][i] = json_content["m_c"][i].tolist()
-        json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
-        json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
+        for i in range(0, len(rvecs)):
+            json_content["m_c"][i] = json_content["m_c"][i].tolist()
+            json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
+            json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
 
-    logging.info(json.dumps(json_content))
+        logging.info(json.dumps(json_content))
 
-    with open(parameters_path, 'w') as outfile:
-        json.dump(json_content, outfile)
+        with open(parameters_path, 'w') as outfile:
+            json.dump(json_content, outfile)
+
+    return ids, corners[0]
 
 
 if __name__ == '__main__':

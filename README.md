@@ -20,6 +20,8 @@ python create_marker.py [-i <id>] [-v] [-s] [-o <output_image>] [-m <size-in-pix
 
 ## Get Shared Coordinates
 
+A data set of picture for testing this is provided at `data/original`.
+
 ### Usage
 
 #### Command Line
@@ -100,3 +102,41 @@ def correct_center(in_path,
   coordinates system axis
 * ```out_path```: Path to where the augmented image will be written
 * ```detection_path```: Path to the detection file
+
+## Circles Distance
+
+A data set of picture for testing this is provided at `data/circles_distance`.
+
+### Usage
+
+#### Command Line
+
+```bash
+python circles_distance.py -i <input_image> -c <camera_config_file> [-v] [-s] [-o <output_image>] [-m <size-in-meters>]
+
+```
+
+* ```-i```: Path to the input image
+* ```-c```: Path to the camera calibration file
+* ```-v```: Verbose mode
+* ```-s```: Show window with original image augmented with marker coordinates
+  system axis
+* ```-o```: Path to where the augmented image will be written
+* ```-m```: Size of the printed marker in meters
+
+#### Programmatically
+
+```
+def circles_distance(in_path,
+                     out_path,
+                     camera,
+                     show_window=False,
+                     marker_size=0.071):
+```
+
+* ```in_path```: Path to the input image
+* ```camera```: Path to the camera calibration file
+* ```show_window```: Show window with original image augmented with marker
+  coordinates system axis
+* ```out_path```: Path to where the augmented image will be written
+* ```marker_size```: Size of the printed marker in meters
