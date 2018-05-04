@@ -189,10 +189,10 @@ def get_coordinates(in_path,
 if __name__ == '__main__':
     myargs = getopts(argv)
     out_path = None
-    in_path = None
+    id = 23
     params_path = None
     show_window = False
-    marker_size = 0.071
+    marker_size = 200
 
     if '-v' in myargs:
         logging.basicConfig(level=logging.INFO)
@@ -201,22 +201,9 @@ if __name__ == '__main__':
         show_window = True
 
     if '-i' in myargs:
-        in_path = myargs['-i']
-        logging.info('Input image at ' + in_path)
-    else:
-        logging.error('No input image provided')
-        exit(-1)
+        id = int(myargs['-i'])
 
-    if '-p' in myargs:
-        params_path = myargs['-p']
-        logging.info('Parameters to be writte to ' + params_path)
-
-    if '-c' in myargs:
-        camera = myargs['-c']
-        logging.info('Camera Distortion model at ' + camera)
-    else:
-        logging.error('No Camera Distortion model provided')
-        exit(-1)
+    logging.info('Marker Id ' + str(id))
 
     if '-o' in myargs:
         out_path = myargs['-o']
@@ -224,11 +211,15 @@ if __name__ == '__main__':
         logging.info('No output image path provided')
 
     if '-m' in myargs:
-        marker_size = myargs['-m']
+        marker_size = int(myargs['-m'])
 
-    get_coordinates(in_path,
-                    out_path,
-                    camera,
-                    params_path,
-                    show_window,
-                    float(marker_size))
+    aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
+    markerImage = cv2.aruco.drawMarker(aruco_dict, id, marker_size, 1)
+
+    # Show the window
+    if show_window:
+        cv2.imshow('Window', markerImage)
+        cv2.waitKey(0)
+
+    if out_path:
+        cv2.imwrite(out_path, markerImage)

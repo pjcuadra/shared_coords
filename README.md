@@ -1,5 +1,22 @@
 # Shared Coordinates
 
+## Create Marker
+
+### Usage
+
+#### Command Line
+
+```bash
+python create_marker.py [-i <id>] [-v] [-s] [-o <output_image>] [-m <size-in-pixels>]
+
+```
+
+* ```-i```: ID of the marker to be created
+* ```-v```: Verbose mode
+* ```-s```: Show window with original image augmented with marker coordinates
+  system axis
+* ```-o```: Path to where the marker image will be written
+* ```-m```: Size of the marker image in pixels
 
 ## Get Shared Coordinates
 
@@ -8,7 +25,7 @@
 #### Command Line
 
 ```bash
-python get_shared_coord.py -i <input_image> -c <camera_config_file> [-v] [-s] [-o <output_image>] [-p <params_file>]
+python get_shared_coord.py -i <input_image> -c <camera_config_file> [-v] [-s] [-o <output_image>] [-p <params_file>] [-m <size-in-meters>]
 
 ```
 
@@ -24,6 +41,7 @@ python get_shared_coord.py -i <input_image> -c <camera_config_file> [-v] [-s] [-
   * Pixel location of the center point of each of the detected marker
   * 3D location of the center point of each of the detected marker
   * Normal vector with respect to each detected marker
+* ```-m```: Size of the printed marker in meters
 
 #### Programmatically
 
@@ -32,7 +50,8 @@ def get_coordinates(in_path,
                     out_path,
                     camera,
                     parameters_path=None,
-                    show_window=False):
+                    show_window=False,
+                    marker_size=0.071):
 ```
 
 * ```in_path```: Path to the input image
@@ -46,3 +65,4 @@ def get_coordinates(in_path,
   * Pixel location of the center point of each of the detected marker
   * 3D location of the center point of each of the detected marker
   * Normal vector with respect to each detected marker
+* ```marker_size```: Size of the printed marker in meters
