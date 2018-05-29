@@ -46,12 +46,12 @@ def circles_distance(in_path,
     pixels_per_cm = marker_pixel_size / (marker_size * 100)
     out_img_scale = 2
 
-    ids, corners = get_coordinates(in_path,
-                                   out_path,
-                                   camera,
-                                   None,
-                                   False,
-                                   marker_size)
+    ids, corners, _ = get_coordinates(in_path,
+                                      camera,
+                                      out_path,
+                                      None,
+                                      False,
+                                      marker_size)
 
     logging.info(ids)
 

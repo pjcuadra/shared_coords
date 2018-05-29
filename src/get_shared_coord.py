@@ -36,9 +36,31 @@ def getopts(argv):
     return opts
 
 
+def calc_3d_location_camera(rvec, tvec, marker_3d):
+    rotation_matrix, d = cv2.Rodrigues(rvec)
+
+    logging.debug(rotation_matrix)
+
+    reversed_rotation_matrix = np.linalg.inv(rotation_matrix)
+    logging.debug(reversed_rotation_matrix)
+
+    # Calculate the reversed tranlation vector
+    reversed_translation = np.matmul(reversed_rotation_matrix,
+                                     -np.transpose(tvec))
+
+    # Calculate the normal vector by projecting the point (0, 0, 1)
+    camera_3d = cv2.gemm(reversed_rotation_matrix,
+                         marker_3d,
+                         1,
+                         reversed_translation,
+                         1)
+
+    return camera_3d
+
+
 def get_coordinates(in_path,
-                    out_path,
                     camera,
+                    out_path=None,
                     parameters_path=None,
                     show_window=False,
                     marker_size=0.071):
@@ -51,10 +73,10 @@ def get_coordinates(in_path,
     intrinsics = fs.getNode("camera_matrix")
     distortion = fs.getNode("distortion_coefficients")
 
-    logging.info('Camera Intrinsics: ')
-    logging.info(intrinsics.mat())
-    logging.info('Camera Distortion: ')
-    logging.info(distortion.mat())
+    logging.debug('Camera Intrinsics: ')
+    logging.debug(intrinsics.mat())
+    logging.debug('Camera Distortion: ')
+    logging.debug(distortion.mat())
 
     # Detect the Aruco Markers
     aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
@@ -67,26 +89,29 @@ def get_coordinates(in_path,
                                                           distortion.mat(),
                                                           parameters=parameters
                                                           )
-    logging.info("Detected Markers: ")
-    logging.info(" -> Ids: ")
-    logging.info(ids)
-    logging.info(" -> Corners: ")
-    logging.info(corners)
-    logging.info(" -> Centers: ")
+    if len(corners) == 0:
+        return None, None, None
+
+    logging.debug("Detected Markers: ")
+    logging.debug(" -> Ids: ")
+    logging.debug(ids)
+    logging.debug(" -> Corners: ")
+    logging.debug(corners)
+    logging.debug(" -> Centers: ")
 
     centers = list()
 
     # Calculate the centers
     for marker_corners in corners[0]:
         sum = [0, 0]
-        # logging.info(marker_corners)
+        # logging.debug(marker_corners)
         for corner in marker_corners:
             sum += corner
 
-        # logging.info(sum/4)
+        # logging.debug(sum/4)
         centers.append(sum/4)
 
-    logging.info(centers)
+    logging.debug(centers)
 
     # Detect the camera pose
     rvecs, tvecs, n = aruco.estimatePoseSingleMarkers(corners,
@@ -94,11 +119,11 @@ def get_coordinates(in_path,
                                                       intrinsics.mat(),
                                                       distortion.mat())
 
-    logging.info("Camera Pose: ")
-    logging.info(" -> Rotation Vector: ")
-    logging.info(rvecs)
-    logging.info(" -> Translation Vector: ")
-    logging.info(tvecs)
+    logging.debug("Camera Pose: ")
+    logging.debug(" -> Rotation Vector: ")
+    logging.debug(rvecs)
+    logging.debug(" -> Translation Vector: ")
+    logging.debug(tvecs)
 
     rrvecs = list()
     rtvecs = list()
@@ -109,10 +134,10 @@ def get_coordinates(in_path,
         # Calculate the reversed Rotation matrix
         rotation_matrix, d = cv2.Rodrigues(rvecs[i])
 
-        logging.info(rotation_matrix)
+        logging.debug(rotation_matrix)
 
         reversed_rotation_matrix = np.linalg.inv(rotation_matrix)
-        logging.info(reversed_rotation_matrix)
+        logging.debug(reversed_rotation_matrix)
 
         # Calculate the reversed tranlation vector
         reversed_translation = np.matmul(reversed_rotation_matrix,
@@ -122,25 +147,20 @@ def get_coordinates(in_path,
         rrvecs.append(np.transpose(rod))
         rtvecs.append(np.transpose(reversed_translation))
 
-        # Calculate the normal vector by projecting the point (0, 0, 1)
-        normal = cv2.gemm(reversed_rotation_matrix,
-                          (0, 0, 1),
-                          1,
-                          reversed_translation,
-                          1)
+        normal = calc_3d_location_camera(rvecs[i], tvecs[i], (0, 0, 1))
 
         normal -= reversed_translation
 
         nvecs.append(normal)
 
-    logging.info("Marker Pose: ")
-    logging.info(" -> Rotation Vector: ")
-    logging.info(rrvecs)
-    logging.info(" -> Translation Vector: ")
-    logging.info(rtvecs)
+    logging.debug("Marker Pose: ")
+    logging.debug(" -> Rotation Vector: ")
+    logging.debug(rrvecs)
+    logging.debug(" -> Translation Vector: ")
+    logging.debug(rtvecs)
 
-    logging.info("Normal Vectors: ")
-    logging.info(nvecs)
+    logging.debug("Normal Vectors: ")
+    logging.debug(nvecs)
 
     # Prepare the output image
     output_image = aruco.drawDetectedMarkers(input_image, corners)
@@ -165,26 +185,31 @@ def get_coordinates(in_path,
         cv2.imwrite(out_path, output_image)
 
     # Add data to JSON
+    json_content = dict()
+
+    json_content["ids"] = ids.tolist()
+    json_content["m_c"] = centers
+    json_content["m_c_3d"] = rtvecs
+    json_content["n_vector"] = nvecs
+    json_content["rvecs"] = list()
+    json_content["tvecs"] = list()
+
+    for i in range(0, len(rvecs)):
+
+        # logging.warning(tvecs[i])
+        json_content["m_c"][i] = json_content["m_c"][i].tolist()
+        json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
+        json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
+        json_content["rvecs"].append(rvecs[i].tolist())
+        json_content["tvecs"].append(tvecs[i].tolist())
+
+    logging.debug(json.dumps(json_content))
+
     if parameters_path:
-
-        json_content = dict()
-
-        json_content["ids"] = ids.tolist()
-        json_content["m_c"] = centers
-        json_content["m_c_3d"] = rtvecs
-        json_content["n_vector"] = nvecs
-
-        for i in range(0, len(rvecs)):
-            json_content["m_c"][i] = json_content["m_c"][i].tolist()
-            json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
-            json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
-
-        logging.info(json.dumps(json_content))
-
         with open(parameters_path, 'w') as outfile:
-            json.dump(json_content, outfile)
+            json.dump(json_content, outfile, indent=4)
 
-    return ids, corners[0]
+    return ids, corners[0], json_content
 
 
 if __name__ == '__main__':
@@ -196,25 +221,25 @@ if __name__ == '__main__':
     marker_size = 0.071
 
     if '-v' in myargs:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.debug)
 
     if '-s' in myargs:
         show_window = True
 
     if '-i' in myargs:
         in_path = myargs['-i']
-        logging.info('Input image at ' + in_path)
+        logging.debug('Input image at ' + in_path)
     else:
         logging.error('No input image provided')
         exit(-1)
 
     if '-p' in myargs:
         params_path = myargs['-p']
-        logging.info('Parameters to be writte to ' + params_path)
+        logging.debug('Parameters to be writte to ' + params_path)
 
     if '-c' in myargs:
         camera = myargs['-c']
-        logging.info('Camera Distortion model at ' + camera)
+        logging.debug('Camera Distortion model at ' + camera)
     else:
         logging.error('No Camera Distortion model provided')
         exit(-1)
@@ -222,14 +247,14 @@ if __name__ == '__main__':
     if '-o' in myargs:
         out_path = myargs['-o']
     else:
-        logging.info('No output image path provided')
+        logging.debug('No output image path provided')
 
     if '-m' in myargs:
         marker_size = myargs['-m']
 
     get_coordinates(in_path,
-                    out_path,
                     camera,
+                    out_path,
                     params_path,
                     show_window,
                     float(marker_size))
