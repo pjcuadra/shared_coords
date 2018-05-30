@@ -467,6 +467,9 @@ if __name__ == '__main__':
                                               camera,
                                               parameters_path=file_path)
 
+        if id is None:
+            continue
+            
         if len(id) == 0:
             logging.warning("No marker found in image " + img)
             continue
