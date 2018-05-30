@@ -222,7 +222,7 @@ def get_coordinates(in_path,
         with open(parameters_path, 'w') as outfile:
             json.dump(json_content, outfile, indent=4)
 
-    return ids, corners[0], json_content
+    return ids, corners, json_content
 
 
 if __name__ == '__main__':

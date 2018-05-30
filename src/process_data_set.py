@@ -54,7 +54,7 @@ def getopts(argv):
 
 
 def get_obj_locations_marker_sys(in_path, img_file, camera, params,
-                                 corners, marker_size=0.071):
+                                 corners, ids, marker_size=0.071):
     marker_pixel_size = 150
     pixels_per_cm = marker_pixel_size / (marker_size * 100)
     pixels_per_m = pixels_per_cm * 100
@@ -386,6 +386,23 @@ def get_augmented_file(img_file):
     return os.path.join(base + "_augmented" + ext)
 
 
+def check_marker_sys(ids):
+    for idx, val in enumerate(ids):
+        if val == 23:
+            return True
+
+    return False
+
+
+def get_marker_sys_corners(ids, corners):
+    if len(ids) > 1:
+        for idx, val in enumerate(ids):
+            if val == 23:
+                return corners[idx]
+
+    return corners[0]
+
+
 if __name__ == '__main__':
     myargs = getopts(argv)
     out_path = None
@@ -450,15 +467,20 @@ if __name__ == '__main__':
                                               camera,
                                               parameters_path=file_path)
 
-        if len(id) == 0: 
+        if len(id) == 0:
             logging.warning("No marker found in image " + img)
             continue
+
+        if not check_marker_sys(id):
+            continue
+
+        sys_corners = get_marker_sys_corners(id, corners)
 
         get_obj_locations_marker_sys(in_path,
                                      img,
                                      camera,
                                      params,
-                                     corners,
+                                     sys_corners,
                                      marker_size)
 
         logging.debug("Distance to object from camera")
