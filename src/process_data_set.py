@@ -197,6 +197,26 @@ def draw_bounding_boxes(in_img, detection_data):
     return output_image
 
 
+def draw_marker_coord_sys_axis(in_img, intrinsics, distortion, rvecs, tvecs):
+
+    if len(rvecs) == 1:
+        aruco.drawAxis(in_img,
+                       intrinsics,
+                       distortion,
+                       rvecs,
+                       tvecs,
+                       0.1)
+        return
+
+    for i in range(len(rvecs)):
+        aruco.drawAxis(in_img,
+                       intrinsics,
+                       distortion,
+                       rvecs[i],
+                       tvecs[i],
+                       0.1)
+
+
 def draw_marker_coord_sys(in_img, camera, marker_size=0.071):
 
     fs = cv2.FileStorage(camera, cv2.FILE_STORAGE_READ)
@@ -223,15 +243,12 @@ def draw_marker_coord_sys(in_img, camera, marker_size=0.071):
                                                       marker_size,
                                                       intrinsics.mat(),
                                                       distortion.mat())
-
+    logging.debug(rvecs)
+    logging.debug(tvecs)
     # Prepare the output image
     output_image = aruco.drawDetectedMarkers(in_img, corners)
-    aruco.drawAxis(output_image,
-                   intrinsics.mat(),
-                   distortion.mat(),
-                   rvecs,
-                   tvecs,
-                   0.1)
+    draw_marker_coord_sys_axis(output_image, intrinsics.mat(),
+                               distortion.mat(), rvecs, tvecs)
 
     return output_image
 
@@ -433,7 +450,7 @@ if __name__ == '__main__':
                                               camera,
                                               parameters_path=file_path)
 
-        if not id:
+        if len(id) == 0: 
             logging.warning("No marker found in image " + img)
             continue
 

@@ -58,6 +58,26 @@ def calc_3d_location_camera(rvec, tvec, marker_3d):
     return camera_3d
 
 
+def draw_marker_axis(in_img, intrinsics, distortion, rvecs, tvecs):
+
+    if len(rvecs) == 1:
+        aruco.drawAxis(in_img,
+                       intrinsics,
+                       distortion,
+                       rvecs,
+                       tvecs,
+                       0.1)
+        return
+
+    for i in range(len(rvecs)):
+        aruco.drawAxis(in_img,
+                       intrinsics,
+                       distortion,
+                       rvecs[i],
+                       tvecs[i],
+                       0.1)
+
+
 def get_coordinates(in_path,
                     camera,
                     out_path=None,
@@ -102,7 +122,7 @@ def get_coordinates(in_path,
     centers = list()
 
     # Calculate the centers
-    for marker_corners in corners[0]:
+    for marker_corners in corners:
         sum = [0, 0]
         # logging.debug(marker_corners)
         for corner in marker_corners:
@@ -164,16 +184,9 @@ def get_coordinates(in_path,
 
     # Prepare the output image
     output_image = aruco.drawDetectedMarkers(input_image, corners)
-    aruco.drawAxis(output_image,
-                   intrinsics.mat(),
-                   distortion.mat(),
-                   rvecs,
-                   tvecs,
-                   0.1)
-    cv2.circle(output_image,
-               (int(centers[0][0]), int(centers[0][1])),
-               5,
-               (0, 0, 255))
+    draw_marker_axis(input_image, intrinsics.mat(), distortion.mat(),
+                     rvecs,
+                     tvecs)
 
     # Show the window
     if show_window:
@@ -197,7 +210,7 @@ def get_coordinates(in_path,
     for i in range(0, len(rvecs)):
 
         # logging.warning(tvecs[i])
-        json_content["m_c"][i] = json_content["m_c"][i].tolist()
+        json_content["m_c"][i] = centers[i].tolist()
         json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
         json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
         json_content["rvecs"].append(rvecs[i].tolist())
