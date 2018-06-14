@@ -65,10 +65,13 @@ def get_obj_locations_marker_sys(in_path, img_file, camera, params,
                                           "coords",
                                           "marker",
                                           marker_json_file)
+    marker_height = 0.01
+    lettuce_height = 0.018
     out_img_scale = 2
 
-    if not detection_data:
-        return
+    sys_corners, id_m, idx_m = get_marker_sys_corners(ids, corners)
+
+    logging.debug("Selected marker id is {}".format(id_m))
 
     fs = cv2.FileStorage(camera, cv2.FILE_STORAGE_READ)
 
@@ -99,26 +102,128 @@ def get_obj_locations_marker_sys(in_path, img_file, camera, params,
                                                     (width, height))
 
     # logging.warning(input_image)
-    undistortedMarkersCorners = cv2.undistortPoints(corners,
+    undistortedMarkersCorners = sys_corners
+    undistortedMarkersCorners = cv2.undistortPoints(undistortedMarkersCorners,
                                                     intrinsics.mat(),
                                                     distortion.mat(),
                                                     P=newCamMatrix)
 
-    H, _ = cv2.findHomography(undistortedMarkersCorners,
-                              rectified_marker_corners,
-                              cv2.RANSAC)
+    H_plane, _ = cv2.findHomography(undistortedMarkersCorners,
+                                    rectified_marker_corners,
+                                    cv2.RANSAC)
 
-    logging.debug('Homography -> {}'.format(H))
+    logging.debug('Homography Plane -> {}'.format(H_plane))
+
+    second_marker_corners = np.array([[(-marker_size/2),
+                                       (marker_size/2),
+                                       marker_height],
+                                      [(marker_size/2),
+                                       (marker_size/2),
+                                       marker_height],
+                                      [(marker_size/2),
+                                       (-marker_size/2),
+                                       marker_height],
+                                      [(-marker_size/2),
+                                       (-marker_size/2),
+                                       marker_height]])
+    lettuce_corners = np.array([[(-marker_size/2),
+                                 (marker_size/2),
+                                 lettuce_height],
+                                [(marker_size/2),
+                                 (marker_size/2),
+                                 lettuce_height],
+                                [(marker_size/2),
+                                 (-marker_size/2),
+                                 lettuce_height],
+                                [(-marker_size/2),
+                                 (-marker_size/2),
+                                 lettuce_height]])
+
+    undistortedMarkersCorners = cv2.projectPoints(second_marker_corners,
+                                                  np.array(
+                                                   params['rvecs'][idx_m]),
+                                                  np.array(
+                                                   params['tvecs'][idx_m]),
+                                                  intrinsics.mat(),
+                                                  distortion.mat())
+    undistortedMarkersCorners = cv2.undistortPoints(
+                                  undistortedMarkersCorners[0],
+                                  intrinsics.mat(),
+                                  distortion.mat(),
+                                  P=newCamMatrix)
+
+    H_marker, _ = cv2.findHomography(undistortedMarkersCorners,
+                                     rectified_marker_corners,
+                                     cv2.RANSAC)
+
+    logging.debug('Homography Marker-> {}'.format(H_marker))
+
+    undistortedMarkersCorners = cv2.projectPoints(lettuce_corners,
+                                                  np.array(
+                                                   params['rvecs'][idx_m]),
+                                                  np.array(
+                                                   params['tvecs'][idx_m]),
+                                                  intrinsics.mat(),
+                                                  distortion.mat())
+    undistortedMarkersCorners = cv2.undistortPoints(
+                                 undistortedMarkersCorners[0],
+                                 intrinsics.mat(),
+                                 distortion.mat(),
+                                 P=newCamMatrix)
+
+    H_lettuce, _ = cv2.findHomography(undistortedMarkersCorners,
+                                      rectified_marker_corners,
+                                      cv2.RANSAC)
+
+    logging.debug('Homography Marker-> {}'.format(H_marker))
 
     data = dict()
+
+    for idx, id in enumerate(ids):
+        if check_marker_sys(id):
+            continue
+
+        logging.debug('Corners {}'.format(corners[idx]))
+        obj_center = np.mean(corners[idx],
+                             axis=1)
+        obj_center = np.array([obj_center])
+
+        obj_center = cv2.undistortPoints(obj_center,
+                                         intrinsics.mat(),
+                                         distortion.mat(),
+                                         P=newCamMatrix)
+        # obj_center = np.transpose(obj_center)
+        # obj_center = np.array([[]])
+
+        logging.debug('Center {}'.format(obj_center))
+
+        # Obtain the 2D location with respect to the marker
+        location_2d = cv2.perspectiveTransform(obj_center, H_marker)
+        location_2d -= np.array([[center_x, center_y]])
+        location_2d = location_2d / pixels_per_m
+
+        x_marker_coord = location_2d.item(0)
+        y_marker_coord = location_2d.item(1)
+
+        location_3d = np.array([[x_marker_coord, y_marker_coord, 0]])
+        data["lettuce_maker"] = dict()
+        data["lettuce_maker"]["marker_location"] = location_3d.tolist()
+
+    with open(obj_detect_coords_path, 'w') as outfile:
+        json.dump(data, outfile, indent=4)
+
+    if not detection_data:
+        return
 
     for box in detection_data:
         obj_center = np.array([[(box[0] + box[2])/2,
                                (box[1] + box[3])/2]], dtype='float32')
         obj_center = np.array([obj_center])
 
+        # logging.debug('Center {}'.format(obj_center))
+
         # Obtain the 2D location with respect to the marker
-        location_2d = cv2.perspectiveTransform(obj_center, H)
+        location_2d = cv2.perspectiveTransform(obj_center, H_lettuce)
         location_2d -= np.array([[center_x, center_y]])
         location_2d = location_2d / pixels_per_m
 
@@ -398,9 +503,9 @@ def get_marker_sys_corners(ids, corners):
     if len(ids) > 1:
         for idx, val in enumerate(ids):
             if val == 23:
-                return corners[idx]
+                return corners[idx], val, idx
 
-    return corners[0]
+    return corners[0], 23, 0
 
 
 if __name__ == '__main__':
@@ -408,7 +513,7 @@ if __name__ == '__main__':
     out_path = None
     in_path = None
     params_path = None
-    marker_size = 0.071
+    marker_size = 0.068
 
     if '-l' in myargs:
         logging.basicConfig(level=llevel_mapping[myargs['-l']])
@@ -430,7 +535,7 @@ if __name__ == '__main__':
         exit(-1)
 
     if '-m' in myargs:
-        marker_size = myargs['-m']
+        marker_size = float(myargs['-m'])
     else:
         marker_size = 0.071
 
@@ -465,11 +570,12 @@ if __name__ == '__main__':
         # Get the coordinates reference frame of marker
         id, corners, params = get_coordinates(full_in_img_path,
                                               camera,
-                                              parameters_path=file_path)
+                                              parameters_path=file_path,
+                                              marker_size=marker_size)
 
         if id is None:
             continue
-            
+
         if len(id) == 0:
             logging.warning("No marker found in image " + img)
             continue
@@ -477,13 +583,12 @@ if __name__ == '__main__':
         if not check_marker_sys(id):
             continue
 
-        sys_corners = get_marker_sys_corners(id, corners)
-
         get_obj_locations_marker_sys(in_path,
                                      img,
                                      camera,
                                      params,
-                                     sys_corners,
+                                     corners,
+                                     id,
                                      marker_size)
 
         logging.debug("Distance to object from camera")

@@ -274,7 +274,7 @@ if __name__ == '__main__':
     in_path = None
 
     if '-v' in myargs:
-        logging.basicConfig(level=logging.debug)
+        logging.basicConfig(level=logging.DEBUG)
 
     if '-i' in myargs:
         in_path = myargs['-i']
