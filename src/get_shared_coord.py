@@ -98,6 +98,23 @@ def get_coordinates(in_path,
     logging.debug('Camera Distortion: ')
     logging.debug(distortion.mat())
 
+    return get_coordinates_system(input_image,
+                                  intrinsics,
+                                  distortion,
+                                  out_path,
+                                  parameters_path,
+                                  show_window,
+                                  marker_size)
+
+
+def get_coordinates_system(input_image,
+                           intrinsics,
+                           distortion,
+                           out_path=None,
+                           parameters_path=None,
+                           show_window=False,
+                           marker_size=0.071):
+
     # Detect the Aruco Markers
     aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
     parameters = aruco.DetectorParameters_create()
@@ -123,15 +140,13 @@ def get_coordinates(in_path,
 
     # Calculate the centers
     for marker_corners in corners:
-        sum = [0, 0]
-        # logging.debug(marker_corners)
-        for corner in marker_corners:
-            sum += corner
+        logging.debug('Marker Corners -> {}'.format(marker_corners[0]))
+        logging.debug('Marker Center -> {}'.format(np.mean(marker_corners[0],
+                                                           axis=0).tolist()))
+        centers.append(np.mean(marker_corners[0],
+                               axis=0).tolist())
 
-        # logging.debug(sum/4)
-        centers.append(sum/4)
-
-    logging.debug(centers)
+    logging.debug('Centers {}'.format(centers))
 
     # Detect the camera pose
     rvecs, tvecs, n = aruco.estimatePoseSingleMarkers(corners,
@@ -148,7 +163,9 @@ def get_coordinates(in_path,
     rrvecs = list()
     rtvecs = list()
     nvecs = list()
+    xvecs = list()
 
+    # Calculte normal vector for each marker
     for i in range(0, len(rvecs)):
         # Reverse the pose
         # Calculate the reversed Rotation matrix
@@ -172,6 +189,31 @@ def get_coordinates(in_path,
         normal -= reversed_translation
 
         nvecs.append(normal)
+
+    # Caculate the x axis unit vector
+    for i in range(0, len(rvecs)):
+        # Reverse the pose
+        # Calculate the reversed Rotation matrix
+        rotation_matrix, d = cv2.Rodrigues(rvecs[i])
+
+        logging.debug(rotation_matrix)
+
+        reversed_rotation_matrix = np.linalg.inv(rotation_matrix)
+        logging.debug(reversed_rotation_matrix)
+
+        # Calculate the reversed tranlation vector
+        reversed_translation = np.matmul(reversed_rotation_matrix,
+                                         -np.transpose(tvecs[i]))
+
+        rod, d = cv2.Rodrigues(reversed_rotation_matrix)
+        rrvecs.append(np.transpose(rod))
+        rtvecs.append(np.transpose(reversed_translation))
+
+        xaxis = calc_3d_location_camera(rvecs[i], tvecs[i], (1, 0, 0))
+
+        xaxis -= reversed_translation
+
+        xvecs.append(xaxis)
 
     logging.debug("Marker Pose: ")
     logging.debug(" -> Rotation Vector: ")
@@ -201,18 +243,20 @@ def get_coordinates(in_path,
     json_content = dict()
 
     json_content["ids"] = ids.tolist()
-    json_content["m_c"] = centers
-    json_content["m_c_3d"] = rtvecs
-    json_content["n_vector"] = nvecs
+    json_content["m_c"] = list()
+    json_content["m_c_3d"] = list()
+    json_content["n_vector"] = list()
+    json_content["xaxis_vector"] = list()
     json_content["rvecs"] = list()
     json_content["tvecs"] = list()
 
     for i in range(0, len(rvecs)):
 
         # logging.warning(tvecs[i])
-        json_content["m_c"][i] = centers[i].tolist()
-        json_content["m_c_3d"][i] = json_content["m_c_3d"][i].tolist()
-        json_content["n_vector"][i] = json_content["n_vector"][i].tolist()
+        json_content["m_c"].append(centers[i])
+        json_content["m_c_3d"].append(rtvecs[i].tolist())
+        json_content["n_vector"].append(nvecs[i].tolist())
+        json_content["xaxis_vector"].append(xvecs[i].tolist())
         json_content["rvecs"].append(rvecs[i].tolist())
         json_content["tvecs"].append(tvecs[i].tolist())
 

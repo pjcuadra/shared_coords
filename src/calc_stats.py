@@ -84,7 +84,7 @@ def calc_hl_dl_stats(in_path, out_path):
     njson = dict()
 
     for key, val in json_data.items():
-        njson[key] = dict()
+        njson[key] = dict() 
         njson[key]["mean"] = np.mean(pos[key],
                                      axis=0).tolist()
         njson[key]["std_dev"] = np.std(pos[key],
@@ -98,7 +98,7 @@ def calc_hl_dl_stats(in_path, out_path):
             pos[key][idx] = sval.tolist()
 
         njson[key]['all'] = pos[key]
-        
+
     with open(stats_out_path, 'w') as f:
         json.dump(njson, f, indent=4)
 
