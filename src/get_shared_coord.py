@@ -224,11 +224,12 @@ def get_coordinates_system(input_image,
     logging.debug("Normal Vectors: ")
     logging.debug(nvecs)
 
-    # Prepare the output image
-    output_image = aruco.drawDetectedMarkers(input_image, corners)
-    draw_marker_axis(input_image, intrinsics.mat(), distortion.mat(),
-                     rvecs,
-                     tvecs)
+    if show_window or out_path is not None:
+        # Prepare the output image
+        output_image = aruco.drawDetectedMarkers(input_image, corners)
+        draw_marker_axis(input_image, intrinsics.mat(), distortion.mat(),
+                        rvecs,
+                        tvecs)
 
     # Show the window
     if show_window:
@@ -236,7 +237,7 @@ def get_coordinates_system(input_image,
         cv2.waitKey(0)
 
     # Write the image to the output path
-    if out_path:
+    if out_path is not None:
         cv2.imwrite(out_path, output_image)
 
     # Add data to JSON

@@ -35,6 +35,27 @@ def getopts(argv):
     return opts
 
 def get_id_list(input_image, camera, marker_size, out_path=None):
+    """
+    Perform marker recognition of the image and return the data
+    for markers found.
+
+    :param input_image: the image to run marker recognition on
+    :param camera: the path to the camera calibration file
+    :param marker_size: the size of the marker's sides (in meters)
+    :param output_path: (optional) path to image file. If not None, 
+        a copy of the input image with markers and coordinate 
+        systems drawn into it will be written to this file
+    
+    :return: upon failure, None, None, None will be returned. Upon
+        success, the method returns three objects:
+        1 - A list of all marker IDs detected. Each marker is contained
+            in it's own list: [[33], [18], [66], ...]
+        2 - The data belonging to those IDs. Have a look at a method like
+            get_xaxis_image_points to see how to retrieve it.
+        3 - An OpenCV FileSystem object (or, rather, handle). This is used
+            by OpenCV to access the file system and should be closed once
+            we are done using it.
+    """
     fs = cv2.FileStorage(camera, cv2.FILE_STORAGE_READ)
     # Get the camera model
     intrinsics = fs.getNode("camera_matrix")
@@ -60,21 +81,33 @@ def get_marker_position(target_id, ids, json_content):
     id = ids.index(target_id)
     return json_content["m_c"][id]
 
-def get_xaxis_image_points(ids, json_content, fs, marker_size):
+def get_xaxis_image_points(target_id, ids, json_content, fs, marker_size):
+    """
+    Try to extract two positions in the image from a single marker.
+
+    If target_id is found in the id list given to this method, it
+    will return two points in the image: The center point of the 
+    marker and a second point, moved along its x axis.
+
+    :param target_id: the ID of the target marker
+    :param ids: the ID list as returned by get_id_list
+    :param json_content: the marker data as returned by get_id_list
+    :param fs: the OpenCV FileSystem handle returned by get_id_list
+    :param float marker_size: The size of the marker's sides (in meters)
+
+    :return: None, None if the marker with ID target_id was not found; 
+        otherwise, returns the position of the marker's center point 
+        and a second position moved along its x axis
+    """
     if ids is None or json_content is None:
         return None, None
-    # 23 is the ID of the marker we use to construct the coordinate system.
-    # We also use the marker with the ID 66 to signal the lettuce object
-    # either not yet having been placed on the table or being moved, so we
-    # can use the presence of this marker ID to determine if we should 
-    # continue processing or discard the image.
-    if [23] not in ids:
+    if [target_id] not in ids:
         return None, None
 
     intrinsics = fs.getNode("camera_matrix")
     distortion = fs.getNode("distortion_coefficients")
 
-    id = ids.index([23])
+    id = ids.index([target_id])
 
     center = json_content["m_c"][id]
     rvecs = json_content["rvecs"]
@@ -102,21 +135,30 @@ def get_xaxis_image_points(ids, json_content, fs, marker_size):
 
     return center, xaxis_end[0][0]
 
-def get_marker_system(ids, json_content, fs, marker_size):
+def get_marker_system(target_id, ids, json_content, fs, marker_size):
+    """
+    Retrieve the axes of the coordinate system centered on the marker with
+    ID target_id.
+
+    :param target_id: the ID of the target marker
+    :param ids: the ID list as returned by get_id_list
+    :param json_content: the marker data as returned by get_id_list
+    :param fs: the OpenCV FileSystem handle returned by get_id_list
+    :param float marker_size: The size of the marker's sides (in meters)
+
+    :return: four pairs of float, denoting the center point of the marker
+        and one point moved along one of the coordinate system's axes. If
+        target_id was not found, returns None, None, None, None
+    """
     if ids is None or json_content is None:
         return None, None, None, None
-    # 23 is the ID of the marker we use to construct the coordinate system.
-    # We also use the marker with the ID 66 to signal the lettuce object
-    # either not yet having been placed on the table or being moved, so we
-    # can use the presence of this marker ID to determine if we should 
-    # continue processing or discard the image.
-    if [23] not in ids:
+    if [target_id] not in ids:
         return None, None, None, None
 
     intrinsics = fs.getNode("camera_matrix")
     distortion = fs.getNode("distortion_coefficients")
 
-    id = ids.index([23])
+    id = ids.index([target_id])
 
     rvecs = json_content["rvecs"]
     tvecs = json_content["tvecs"]
@@ -144,6 +186,9 @@ def get_marker_system(ids, json_content, fs, marker_size):
     return projected_axes[0][0], projected_axes[1][0], projected_axes[3][0], projected_axes[2][0]
 
 def _get_xaxis_image_points(input_image, camera, marker_size, out_path=None):
+    """
+    Original, all-in-one implementation of get_xaxis_image_points.
+    """
     fs = cv2.FileStorage(camera, cv2.FILE_STORAGE_READ)
     # Get the camera model
     intrinsics = fs.getNode("camera_matrix")
